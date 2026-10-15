@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>团购报价单</title>
+<style>
+  :root { --accent: #1d6f42; --line: #d0d5dc; --ink: #1f2933; --muted: #6b7280; --warn: #c0392b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef1f4; color: var(--ink);
+         font-family: "Microsoft YaHei", "PingFang SC", sans-serif; font-size: 14px; }
+
+  /* 顶部工具栏 */
+  .toolbar { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid var(--line);
+             padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .toolbar .title { font-weight: bold; margin-right: auto; }
+  .btn { padding: 6px 14px; border: 1px solid var(--accent); background: var(--accent); color: #fff;
+         border-radius: 4px; cursor: pointer; font: inherit; }
+  .btn.ghost { background: #fff; color: var(--accent); }
+  .warn-bar { background: #fdecea; color: var(--warn); padding: 8px 16px; }
+
+  /* A4 纸 */
+  .page { width: 210mm; min-height: 297mm; margin: 20px auto; padding: 15mm; background: #fff;
+          box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  .f { width: 100%; border: none; border-bottom: 1px dashed var(--line); background: transparent;
+       font: inherit; color: inherit; padding: 2px 0; }
+  .f:focus { outline: none; border-bottom-color: var(--accent); }
+  .num { text-align: right; }
+  .c { text-align: center; }
+  .section-title { margin: 18px 0 8px; font-size: 14px; font-weight: bold; color: var(--accent); }
+
+  /* 抬头 */
+  .head { display: flex; justify-content: space-between; gap: 24px;
+          border-bottom: 3px solid var(--accent); padding-bottom: 12px; margin-bottom: 8px; }
+  .shop { flex: 1; }
+  .shop .big { font-size: 20px; font-weight: bold; }
+  .meta { width: 240px; }
+  .meta h1 { margin: 0 0 8px; font-size: 24px; color: var(--accent); text-align: right; }
+  .kv { width: 100%; border-collapse: collapse; }
+  .kv th { text-align: left; font-weight: normal; font-size: 12px; color: var(--muted); padding: 3px 8px 3px 0; white-space: nowrap; }
+  .kv input { text-align: right; }
+
+  /* 商品卡片 */
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 12px; margin-bottom: 12px; break-inside: avoid; }
+  .card-top { display: flex; gap: 14px; position: relative; }
+  .pic { width: 130px; height: 130px; flex: none; border: 1px dashed var(--line); border-radius: 4px; background: #fafafa;
+         display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+  .pic img { width: 100%; height: 100%; object-fit: contain; }
+  .pic img:not([src]) { display: none; }
+  .pic.has-img { border-style: solid; background: #fff; }
+  .pic.has-img .pic-hint { display: none; }
+  .pic-hint { color: var(--muted); font-size: 12px; text-align: center; padding: 8px; }
+  .info { flex: 1; min-width: 0; }
+  .row1 { display: flex; gap: 8px; align-items: center; padding-right: 24px; }
+  .no { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px;
+        display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .name { font-size: 16px; font-weight: bold; }
+  .row2 { display: flex; gap: 16px; margin: 6px 0; font-size: 12px; color: var(--muted); }
+  .row2 label { display: flex; gap: 6px; align-items: center; flex: 1; white-space: nowrap; }
+  .row2 input { color: var(--ink); }
+  .desc { width: 100%; min-height: 64px; border: 1px dashed var(--line); padding: 6px; font: inherit; resize: vertical; }
+  .desc-print { display: none; margin: 4px 0 0; padding-left: 18px; line-height: 1.6; }
+  .del { position: absolute; top: -6px; right: -4px; border: none; background: none; color: var(--warn);
+         font-size: 20px; cursor: pointer; }
+
+  .price-row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+               margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .price-row label { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .price-row input { width: 80px; }
+  .disc-select { padding: 3px; border: 1px solid #f0c48a; border-radius: 4px; font: inherit;
+                 background: #fff3e0; color: #b45309; }
+  .disc { display: none; background: #fff3e0; color: #b45309; padding: 2px 10px; border-radius: 10px; font-size: 12px;
+          -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .price-row .amount { color: var(--accent); font-size: 15px; }
+
+  .size-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 8px; font-size: 13px; }
+  .size-row select { padding: 3px; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+  .size-label { display: none; color: var(--muted); }
+  .sizes { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+  .sizes label { display: flex; align-items: center; gap: 3px; }
+  .sizes input { width: 44px; text-align: center; }
+  .size-check.ok { color: var(--accent); }
+  .size-check.bad { color: var(--warn); font-weight: bold; }
+
+  /* 汇总 */
+  .summary { width: 100%; border-collapse: collapse; }
+  .summary th { background: var(--accent); color: #fff; font-weight: normal; font-size: 12px; padding: 6px;
+                -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .summary td { border-bottom: 1px solid var(--line); padding: 6px; }
+  .bottom { display: flex; gap: 24px; margin-top: 16px; align-items: flex-start; }
+  .terms { flex: 1; }
+  .terms .section-title { margin-top: 0; }
+  .terms .line { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; white-space: nowrap; }
+  .terms .short { width: 50px; }
+  .notes-box { width: 100%; min-height: 70px; border: 1px dashed var(--line); padding: 6px; font: inherit; resize: vertical; }
+  .totals { width: 260px; border-collapse: collapse; }
+  .totals th { text-align: left; font-weight: normal; font-size: 13px; color: var(--muted); padding: 5px 0; }
+  .totals td { text-align: right; padding: 5px 0; white-space: nowrap; }
+  .totals .save td { color: var(--warn); }
+  .totals .grand th, .totals .grand td { border-top: 2px solid var(--ink); font-weight: bold; font-size: 16px; color: var(--ink); }
+  .totals .people-input { width: 70px; }
+  .totals .per td { color: var(--accent); font-weight: bold; }
+
+  .sign { display: flex; gap: 40px; margin-top: 60px; }
+  .sign div { flex: 1; border-top: 1px solid var(--ink); padding-top: 6px; text-align: center; font-size: 12px; color: var(--muted); }
+
+  /* 手机 */
+  @media (max-width: 820px) {
+    .page { width: auto; min-height: 0; margin: 12px; padding: 16px; }
+    .head, .bottom, .card-top { flex-direction: column; }
+    .meta, .totals { width: 100%; }
+    .pic { width: 100%; height: 200px; }
+  }
+
+  /* 打印 */
+  @media print {
+    @page { size: A4; margin: 12mm; }
+    body { background: #fff; }
+    .toolbar, .no-print, .warn-bar { display: none !important; }
+    .page { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+    .f, .notes-box { border-color: transparent !important; resize: none; }
+    .f::placeholder, textarea::placeholder { color: transparent; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=date]::-webkit-calendar-picker-indicator { display: none; }
+    .pic:not(.has-img) { display: none; }
+    .pic { border: none; }
+    .desc { display: none; }
+    .desc-print { display: block; }
+    .disc { display: inline; }
+    .size-row.off, .size-check { display: none; }
+    .size-label { display: inline; }
+    #peopleRow.empty { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="title">团购报价单</span>
+  <button class="btn ghost" id="newQuote">新报价单</button>
+  <button class="btn" id="printBtn">打印 / 存PDF</button>
+</div>
+<div class="warn-bar" id="storageWarn" hidden>
+  ⚠️ 浏览器存储空间满了，最新修改没有保存（通常是图片太多）。请删掉几张图片，或先打印存 PDF 留底。
+</div>
+
+<div class="page">
+  <!-- 抬头 -->
+  <div class="head">
+    <div class="shop">
+      <input class="f big" id="shopName" value="探路者户外 · 都江堰店" data-save>
+      <input class="f" id="shopAddr" placeholder="门店地址" data-save>
+      <input class="f" id="shopPhone" placeholder="联系电话 / 微信" data-save>
+    </div>
+    <div class="meta">
+      <h1>团购报价单</h1>
+      <table class="kv">
+        <tr><th>报价单号</th><td><input class="f" id="quoteNo" data-save></td></tr>
+        <tr><th>报价日期</th><td><input class="f" id="date" type="date" data-save></td></tr>
+        <tr><th>有效期至</th><td><input class="f" id="validUntil" type="date" data-save></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 商品卡片 -->
+  <p class="section-title">商品明细</p>
+  <div id="cards"></div>
+  <button class="btn ghost no-print" id="addCard">+ 添加商品</button>
+
+  <!-- 汇总 -->
+  <p class="section-title">报价汇总</p>
+  <table class="summary">
+    <thead><tr>
+      <th style="width:44px">序号</th><th>商品</th><th style="width:60px">数量</th>
+      <th style="width:60px">折扣</th><th style="width:100px">团购单价</th><th style="width:110px">小计</th>
+    </tr></thead>
+    <tbody id="summaryBody"></tbody>
+  </table>
+
+  <div class="bottom">
+    <div class="terms">
+      <p class="section-title">付款与交货</p>
+      <div class="line">定金比例 <input class="f short num" id="depositPct" type="number" min="0" max="100" value="30" data-save> %</div>
+      <div class="line">交货时间 <input class="f" id="delivery" value="确认订单并收到定金后 15 个工作日内" data-save></div>
+      <textarea class="notes-box" id="notes" placeholder="其他说明：LOGO 定制、退换规则、发票等" data-save></textarea>
+    </div>
+    <table class="totals">
+      <tr><th>商品总件数</th><td id="tQty"></td></tr>
+      <tr><th>原价合计</th><td id="tOrig"></td></tr>
+      <tr class="save"><th>为您节省</th><td id="tSave"></td></tr>
+      <tr class="grand"><th>团购总价</th><td id="tGroup"></td></tr>
+      <tr id="peopleRow"><th>客户人数</th>
+          <td><input class="f num people-input" id="people" type="number" min="0" placeholder="填人数" data-save> 人</td></tr>
+      <tr class="per" id="perRow"><th>人均</th><td id="tPer"></td></tr>
+      <tr><th>定金 <span id="tPct"></span></th><td id="tDeposit"></td></tr>
+      <tr><th>尾款</th><td id="tBalance"></td></tr>
+    </table>
+  </div>
+
+  <div class="sign">
+    <div>客户确认（签字 / 盖章）</div>
+    <div>报价方（签字 / 盖章）</div>
+  </div>
+</div>
+
+<script>
+// ===== 1. 可以自己改的设置 =====
+
+// 尺码组
+const SIZE_SETS = {
+  clothes: ["S", "M", "L", "XL", "XXL", "3XL"],
+  shoes:   ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"]
+};
+
+// 第一次打开时的示例商品（discPct: 85 表示按原价的 85% 收费）
+const SAMPLE = [{
+  name: "探路者三合一冲锋衣", sku: "示例款号", color: "黑色", price: 1299, qty: 30, discPct: 85,
+  desc: "防水透气面料\n三合一可拆卸抓绒内胆\n可定制胸前 LOGO",
+  sizeSet: "clothes", sizes: { S: 3, M: 8, L: 10, XL: 6, XXL: 3 }
+}];
+
+// ===== 2. 小工具 =====
+const $ = id => document.getElementById(id);
+const cardsEl = $("cards");
+const STORE_KEY = "toread-group-quote";
+const num = v => Number(v) || 0;
+
+function money(n) {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function ymd(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// ===== 3. 折扣：按原价的百分之几收费（100% = 不打折） =====
+function pctFor(card) {
+  const p = num(card.querySelector('[data-k="discPct"]').value);
+  return Math.min(100, Math.max(1, p || 100));
+}
+function fillDiscountOptions(select) {
+  for (let p = 100; p >= 1; p--) {
+    const opt = document.createElement("option");
+    opt.value = p;
+    opt.textContent = p + "%";
+    select.appendChild(opt);
+  }
+}
+
+// ===== 4. 图片压缩：大图缩到 600 像素宽，存成 JPEG =====
+function compressImage(file, maxW = 600) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function setImage(card, src) {
+  const img = card.querySelector(".pic img");
+  if (src) { img.src = src; card.querySelector(".pic").classList.add("has-img"); }
+  else     { img.removeAttribute("src"); card.querySelector(".pic").classList.remove("has-img"); }
+}
+
+// ===== 5. 尺码 =====
+function renderSizes(card, values) {
+  const set = SIZE_SETS[card.querySelector('[data-k="sizeSet"]').value] || [];
+  const box = card.querySelector(".sizes");
+  box.innerHTML = "";
+  set.forEach(s => {
+    const label = document.createElement("label");
+    label.innerHTML = s + '<input class="f" type="number" min="0">';
+    const input = label.querySelector("input");
+    input.dataset.size = s;
+    input.value = values[s] || "";
+    box.appendChild(label);
+  });
+}
+function readSizes(card) {
+  const v = {};
+  card.querySelectorAll("[data-size]").forEach(el => v[el.dataset.size] = el.value);
+  return v;
+}
+
+// ===== 6. 添加一个商品卡片 =====
+function addCard(item = {}) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card-top">
+      <label class="pic" title="点击上传 / 更换图片">
+        <img alt="">
+        <span class="pic-hint">📷<br>点击上传图片</span>
+        <input type="file" accept="image/*" hidden>
+      </label>
+      <div class="info">
+        <div class="row1"><span class="no"></span><input class="f name" data-k="name" placeholder="商品名称"></div>
+        <div class="row2">
+          <label>款号 <input class="f" data-k="sku"></label>
+          <label>颜色 <input class="f" data-k="color"></label>
+        </div>
+        <textarea class="desc" data-k="desc" placeholder="商品卖点，每行写一条&#10;例如：防水透气面料"></textarea>
+        <ul class="desc-print"></ul>
+      </div>
+      <button class="del no-print" title="删除这个商品">×</button>
+    </div>
+    <div class="price-row">
+      <label>原价 ¥<input class="f num" data-k="price" type="number" min="0" step="any"></label>
+      <label>数量 <input class="f num" data-k="qty" type="number" min="0"> 件</label>
+      <label class="no-print">折扣 <select class="disc-select" data-k="discPct"></select></label>
+      <span class="disc"></span>
+      <span>团购单价 <b class="unit"></b></span>
+      <span>小计 <b class="amount"></b></span>
+    </div>
+    <div class="size-row">
+      <select class="no-print" data-k="sizeSet">
+        <option value="">不分尺码</option>
+        <option value="clothes">服装尺码</option>
+        <option value="shoes">鞋码</option>
+      </select>
+      <span class="size-label">尺码：</span>
+      <div class="sizes"></div>
+      <span class="size-check"></span>
+    </div>`;
+
+  fillDiscountOptions(card.querySelector('[data-k="discPct"]'));
+
+  ["name", "sku", "color", "desc", "price", "sizeSet"].forEach(k => {
+    card.querySelector(`[data-k="${k}"]`).value = item[k] ?? "";
+  });
+  card.querySelector('[data-k="qty"]').value = item.qty ?? 1;
+  card.querySelector('[data-k="discPct"]').value = item.discPct || 100;
+  setImage(card, item.img);
+  renderSizes(card, item.sizes || {});
+
+  card.querySelector('[data-k="sizeSet"]').addEventListener("change", () => renderSizes(card, readSizes(card)));
+
+  const fileInput = card.querySelector('input[type="file"]');
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    try {
+      setImage(card, await compressImage(file));
+      update();
+    } catch (e) {
+      alert("这张图片读取失败，请换一张（建议用 JPG 或 PNG）。");
+    }
+    fileInput.value = "";
+  });
+
+  card.querySelector(".del").addEventListener("click", () => {
+    if (confirm("删除这个商品？")) { card.remove(); update(); }
+  });
+
+  cardsEl.appendChild(card);
+}
+
+// ===== 7. 计算所有数字 =====
+function update() {
+  let totalOrig = 0, totalGroup = 0, totalQty = 0;
+  const body = $("summaryBody");
+  body.innerHTML = "";
+
+  [...cardsEl.children].forEach((card, i) => {
+    const name  = card.querySelector('[data-k="name"]').value || "（未命名商品）";
+    const price = num(card.querySelector('[data-k="price"]').value);
+    const qty   = num(card.querySelector('[data-k="qty"]').value);
+    const pct   = pctFor(card);
+    const unit  = price * pct / 100;          // 团购单价 = 原价 × 百分比
+    const amount = unit * qty;
+
+    card.querySelector(".no").textContent = i + 1;
+    card.querySelector(".disc").textContent = pct + "%";
+    card.querySelector(".unit").textContent = "¥ " + money(unit);
+    card.querySelector(".amount").textContent = "¥ " + money(amount);
+
+    // 卖点：每行一条 → 打印用的圆点列表
+    const ul = card.querySelector(".desc-print");
+    ul.innerHTML = "";
+    card.querySelector(".desc").value.split("\n").map(s => s.trim()).filter(Boolean).forEach(line => {
+      const li = document.createElement("li");
+      li.textContent = line;
+      ul.appendChild(li);
+    });
+
+    // 尺码核对
+    const sizeInputs = card.querySelectorAll("[data-size]");
+    const check = card.querySelector(".size-check");
+    card.querySelector(".size-row").classList.toggle("off", sizeInputs.length === 0);
+    if (sizeInputs.length) {
+      let sum = 0;
+      sizeInputs.forEach(inp => sum += num(inp.value));
+      const ok = sum === qty;
+      check.className = "size-check " + (ok ? "ok" : "bad");
+      check.textContent = ok ? "✓ 共 " + sum + " 件" : "✗ 尺码合计 " + sum + " 件，与数量 " + qty + " 件不符";
+    } else {
+      check.textContent = "";
+    }
+
+    // 汇总表一行
+    const tr = body.insertRow();
+    [i + 1, name, qty, pct + "%", "¥ " + money(unit), "¥ " + money(amount)].forEach((v, j) => {
+      const td = tr.insertCell();
+      td.textContent = v;
+      td.className = j === 1 ? "" : (j === 0 || j === 3 ? "c" : "num");
+    });
+
+    totalOrig  += price * qty;
+    totalGroup += amount;
+    totalQty   += qty;
+  });
+
+  const people = num($("people").value);
+  const depPct = num($("depositPct").value);
+  const deposit = totalGroup * depPct / 100;
+
+  $("tQty").textContent = totalQty + " 件";
+  $("tOrig").textContent = "¥ " + money(totalOrig);
+  $("tSave").textContent = "- ¥ " + money(totalOrig - totalGroup);
+  $("tGroup").textContent = "¥ " + money(totalGroup);
+
+  // 人均：填了人数才显示
+  $("peopleRow").classList.toggle("empty", people <= 0);
+  $("perRow").hidden = people <= 0;
+  $("tPer").textContent = people > 0 ? "¥ " + money(totalGroup / people) : "";
+
+  $("tPct").textContent = "(" + depPct + "%)";
+  $("tDeposit").textContent = "¥ " + money(deposit);
+  $("tBalance").textContent = "¥ " + money(totalGroup - deposit);
+
+  save();
+}
+
+// ===== 8. 自动保存 =====
+function save() {
+  const data = { fields: {}, items: [] };
+  document.querySelectorAll("[data-save]").forEach(el => data.fields[el.id] = el.value);
+  [...cardsEl.children].forEach(card => {
+    const item = { sizes: readSizes(card) };
+    card.querySelectorAll("[data-k]").forEach(el => item[el.dataset.k] = el.value);
+    item.img = card.querySelector(".pic img").getAttribute("src") || "";
+    data.items.push(item);
+  });
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    $("storageWarn").hidden = true;
+  } catch (e) {
+    $("storageWarn").hidden = false;
+  }
+}
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { return null; }
+}
+
+// ===== 9. 新报价单的单号和日期 =====
+function setNewQuoteInfo() {
+  const now = new Date();
+  const valid = new Date();
+  valid.setDate(valid.getDate() + 15);
+  $("date").value = ymd(now);
+  $("validUntil").value = ymd(valid);
+  $("quoteNo").value = "TG-" + ymd(now).replaceAll("-", "") + "-" +
+                       String(now.getHours()).padStart(2, "0") + String(now.getMinutes()).padStart(2, "0");
+}
+
+// ===== 10. 按钮和事件 =====
+document.addEventListener("input", update);
+document.addEventListener("change", update);
+
+$("addCard").addEventListener("click", () => {
+  addCard();
+  update();
+  cardsEl.lastElementChild.querySelector('[data-k="name"]').focus();
+});
+
+$("newQuote").addEventListener("click", () => {
+  if (!confirm("开始新报价单？商品和客户人数会清空，门店信息和条款保留。")) return;
+  $("people").value = "";
+  cardsEl.innerHTML = "";
+  addCard();
+  setNewQuoteInfo();
+  update();
+});
+
+$("printBtn").addEventListener("click", () => {
+  const old = document.title;
+  document.title = "团购报价_" + $("quoteNo").value;   // 存 PDF 时的文件名
+  window.print();
+  document.title = old;
+});
+
+// ===== 11. 打开网页时 =====
+const saved = load();
+if (saved) {
+  Object.entries(saved.fields).forEach(([id, v]) => { if ($(id)) $(id).value = v; });
+  saved.items.forEach(item => addCard(item));
+} else {
+  setNewQuoteInfo();
+  SAMPLE.forEach(item => addCard(item));
+}
+if (cardsEl.children.length === 0) addCard();
+update();
+</script>
+</body>
+</html>
